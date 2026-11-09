@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Provas - Portal Aluno & Coordenador</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800">
+
+    <!-- Navegação Superior -->
+    <nav class="bg-indigo-700 text-white shadow-md">
+        <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">📝</span>
+                <span class="font-bold text-lg">Sistema de Provas</span>
+            </div>
+            <div class="space-x-2">
+                <button onclick="switchTab('student')" id="nav-student-btn" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-800 text-white transition">
+                    Área do Aluno
+                </button>
+                <button onclick="switchTab('coord')" id="nav-coord-btn" class="px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                    Área do Coordenador
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Conteúdo Principal -->
+    <main class="max-w-4xl mx-auto p-4 sm:p-6">
+
+        <!-- ==================== ÁREA DO ALUNO ==================== -->
+        <section id="student-section" class="block space-y-6">
+
+            <!-- TELA DE ESPERA E CÓDIGO DE ACESSO -->
+            <div id="student-waiting-room" class="bg-white rounded-2xl shadow-md p-6 sm:p-8 max-w-lg mx-auto text-center border border-slate-200">
+                <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+                    ⏳
+                </div>
+                <h1 id="display-exam-title" class="text-2xl font-bold text-slate-800 mb-2">Avaliando Conhecimentos</h1>
+                <p class="text-sm text-slate-500 mb-6">Aguarde a liberação do sistema pelo coordenador e insira o código informado.</p>
+
+                <!-- Status de Liberação -->
+                <div id="status-badge" class="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold mb-6 bg-amber-100 text-amber-800">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 mr-2 animate-pulse"></span>
+                    Sistema Bloqueado / Aguardando Liberação
+                </div>
+
+                <div class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nome do Aluno</label>
+                        <input type="text" id="student-name" placeholder="Digite seu nome completo" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Código de Acesso da Prova</label>
+                        <input type="text" id="student-code" placeholder="Ex: PROVA2026" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 uppercase tracking-widest font-mono text-center focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <button onclick="startExam()" class="w-full py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition shadow-sm">
+                        Iniciar Prova
+                    </button>
+                </div>
+            </div>
+
+            <!-- TELA DE REALIZAÇÃO DA PROVA -->
+            <div id="student-exam-room" class="hidden bg-white rounded-2xl shadow-md p-6 sm:p-8 max-w-2xl mx-auto border border-slate-200">
+                <div class="flex justify-between items-center border-b pb-4 mb-6">
+                    <div>
+                        <span id="exam-student-name" class="text-xs font-semibold text-slate-500 uppercase">Aluno: ---</span>
+                        <h2 id="question-number" class="text-sm font-semibold text-indigo-600">Questão 1</h2>
+                    </div>
+                    <span class="text-xs bg-slate-100 px-3 py-1 rounded-full text-slate-600 font-mono">Modo Prova</span>
+                </div>
+
+                <h3 id="question-title" class="text-lg font-semibold text-slate-800 mb-6"></h3>
+
+                <div id="options-container" class="space-y-3 mb-6">
+                    <!-- Opções injetadas via JS -->
+                </div>
+
+                <div class="flex justify-between items-center pt-4 border-t">
+                    <button id="prev-btn" onclick="prevQuestion()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition disabled:opacity-50">
+                        Anterior
+                    </button>
+                    <button id="next-btn" onclick="nextQuestion()" class="px-5 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+                        Próxima
+                    </button>
+                </div>
+            </div>
+
+            <!-- TELA DE RESULTADO / GABARITO -->
+            <div id="student-result-room" class="hidden bg-white rounded-2xl shadow-md p-6 sm:p-8 max-w-2xl mx-auto text-center border border-slate-200">
+                <div class="mb-6">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full text-3xl mb-3">🏆</div>
+                    <h2 class="text-2xl font-bold text-slate-800">Prova Concluída!</h2>
+                    <p id="score-text" class="text-lg text-slate-600 mt-2"></p>
+                </div>
+
+                <div id="review-container" class="text-left space-y-4 mb-6 max-h-96 overflow-y-auto pr-2">
+                    <!-- Gabarito injetado via JS -->
+                </div>
+
+                <button onclick="resetStudentExam()" class="w-full py-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition">
+                    Voltar à Tela Inicial
+                </button>
+            </div>
+
+        </section>
+
+        <!-- ==================== ÁREA DO COORDENADOR ==================== -->
+        <section id="coord-section" class="hidden space-y-6">
+
+            <!-- LOGIN COORDENADOR -->
+            <div id="coord-login-room" class="bg-white rounded-2xl shadow-md p-6 sm:p-8 max-w-md mx-auto text-center border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-800 mb-2">Acesso Restrito - Coordenador</h2>
+                <p class="text-xs text-slate-500 mb-6">Digite a senha administrativa (Padrão: <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded">admin123</span>)</p>
+
+                <div class="space-y-4">
+                    <input type="password" id="coord-password-input" placeholder="Senha de acesso" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <button onclick="loginCoord()" class="w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition">
+                        Entrar no Painel
+                    </button>
+                </div>
+            </div>
+
+            <!-- PAINEL DE CONTROLE DO COORDENADOR -->
+            <div id="coord-panel" class="hidden space-y-6">
+                
+                <!-- PAINEL DE LIBERAÇÃO E CÓDIGO DA PROVA -->
+                <div class="bg-white rounded-2xl shadow-md p-6 border border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2 flex items-center justify-between">
+                        <span>⚙️ Controle de Liberação da Prova</span>
+                        <button onclick="logoutCoord()" class="text-xs text-rose-600 hover:underline">Sair do Painel</button>
+                    </h3>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Título da Prova</label>
+                            <input type="text" id="coord-exam-title-input" class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Código de Acesso</label>
+                            <div class="flex space-x-2">
+                                <input type="text" id="coord-exam-code-input" class="w-full px-3 py-2 rounded-lg border border-slate-300 uppercase tracking-widest font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm">
+                                <button onclick="generateRandomCode()" class="px-3 py-2 bg-slate-100 border border-slate-300 text-slate-700 text-xs rounded-lg hover:bg-slate-200">Gerar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col sm:flex-row justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-200 gap-3">
+                        <div>
+                            <span class="text-xs text-slate-500 block">Status Atual do Sistema:</span>
+                            <span id="coord-status-text" class="font-bold text-sm text-slate-700">---</span>
+                        </div>
+                        <div class="flex space-x-2 w-full sm:w-auto">
+                            <button onclick="saveExamSettings()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">Salvar Alterações</button>
+                            <button id="toggle-release-btn" onclick="toggleExamRelease()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">Liberar Prova</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CADASTRO E GESTÃO DE QUESTÕES -->
+                <div class="bg-white rounded-2xl shadow-md p-6 border border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">➕ Cadastrar Nova Questão</h3>
+
+                    <form id="question-form" onsubmit="saveQuestion(event)" class="space-y-4">
+                        <input type="hidden" id="edit-question-index" value="-1">
+                        
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Enunciado da Questão</label>
+                            <textarea id="form-title" required rows="2" placeholder="Digite a pergunta..." class="w-full px-3 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"></textarea>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-xs font-semibold text-slate-600 uppercase">Alternativas (Marque a correta)</label>
+                            
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="correct-opt" value="0" required class="w-4 h-4 text-indigo-600">
+                                <input type="text" id="opt-0" placeholder="Alternativa A" required class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-sm">
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="correct-opt" value="1" class="w-4 h-4 text-indigo-600">
+                                <input type="text" id="opt-1" placeholder="Alternativa B" required class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-sm">
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="correct-opt" value="2" class="w-4 h-4 text-indigo-600">
+                                <input type="text" id="opt-2" placeholder="Alternativa C" required class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-sm">
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <input type="radio" name="correct-opt" value="3" class="w-4 h-4 text-indigo-600">
+                                <input type="text" id="opt-3" placeholder="Alternativa D" required class="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-sm">
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end space-x-2 pt-2">
+                            <button type="button" onclick="resetForm()" class="px-4 py-2 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-200">Cancelar</button>
+                            <button type="submit" id="form-submit-btn" class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">Salvar Questão</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- LISTA DE QUESTÕES CADASTRADAS -->
+                <div class="bg-white rounded-2xl shadow-md p-6 border border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2 flex justify-between items-center">
+                        <span>📋 Banco de Questões (<span id="questions-count">0</span>)</span>
+                    </h3>
+                    <div id="questions-list" class="space-y-4 max-h-96 overflow-y-auto pr-1">
+                        <!-- Questões renderizadas via JS -->
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <script>
+        // Estado Global (com persistência LocalStorage)
+        let systemConfig = JSON.parse(localStorage.getItem('sys_config')) || {
+            examTitle: "Avaliação Geral de Conhecimentos",
+            accessCode: "PROVA123",
+            isReleased: false
+        };
+
+        let questions = JSON.parse(localStorage.getItem('sys_questions')) || [
+            {
+                title: "Qual a função do comando CSS 'display: flex'?",
+                options: ["Criar um banco de dados relacional", "Organizar elementos em um layout flexível", "Executar scripts assíncronos", "Compilar código HTML"],
+                answer: 1
+            }
+        ];
+
+        let studentSession = {
+            name: "",
+            currentQuestion: 0,
+            userAnswers: []
+        };
+
+        // Salvar dados no navegador
+        function saveData() {
+            localStorage.setItem('sys_config', JSON.stringify(systemConfig));
+            localStorage.setItem('sys_questions', JSON.stringify(questions));
+            updateUI();
+        }
+
+        // Alternância de Abas
+        function switchTab(tab) {
+            const studentSec = document.getElementById('student-section');
+            const coordSec = document.getElementById('coord-section');
+            const navStudentBtn = document.getElementById('nav-student-btn');
+            const navCoordBtn = document.getElementById('nav-coord-btn');
+
+            if (tab === 'student') {
+                studentSec.classList.remove('hidden');
+                coordSec.classList.add('hidden');
+                navStudentBtn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-800 text-white transition";
+                navCoordBtn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition";
+            } else {
+                studentSec.classList.add('hidden');
+                coordSec.classList.remove('hidden');
+                navCoordBtn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-800 text-white transition";
