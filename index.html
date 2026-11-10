@@ -115,7 +115,7 @@
                 <p class="text-xs text-slate-500 mb-6">Digite a senha administrativa (Padrão: <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded">admin123</span>)</p>
 
                 <div class="space-y-4">
-                    <input type="password" id="coord-password-input" placeholder="Senha de acesso" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="password" id="coord-password-input" placeholder="Senha de acesso" class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:outline-none" onkeypress="if(event.key === 'Enter') loginCoord()">
                     <button onclick="loginCoord()" class="w-full py-2.5 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition">
                         Entrar no Painel
                     </button>
@@ -127,7 +127,7 @@
                 
                 <!-- PAINEL DE LIBERAÇÃO E CÓDIGO DA PROVA -->
                 <div class="bg-white rounded-2xl shadow-md p-6 border border-slate-200">
-                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2 flex justify-between items-center">
                         <span>⚙️ Controle de Liberação da Prova</span>
                         <button onclick="logoutCoord()" class="text-xs text-rose-600 hover:underline">Sair do Painel</button>
                     </h3>
@@ -160,7 +160,7 @@
 
                 <!-- CADASTRO E GESTÃO DE QUESTÕES -->
                 <div class="bg-white rounded-2xl shadow-md p-6 border border-slate-200">
-                    <h3 class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">➕ Cadastrar Nova Questão</h3>
+                    <h3 id="form-section-title" class="text-lg font-bold text-slate-800 mb-4 border-b pb-2">➕ Cadastrar Nova Questão</h3>
 
                     <form id="question-form" onsubmit="saveQuestion(event)" class="space-y-4">
                         <input type="hidden" id="edit-question-index" value="-1">
@@ -192,7 +192,7 @@
                         </div>
 
                         <div class="flex justify-end space-x-2 pt-2">
-                            <button type="button" onclick="resetForm()" class="px-4 py-2 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-200">Cancelar</button>
+                            <button type="button" onclick="resetForm()" class="px-4 py-2 bg-slate-100 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-200">Cancelar Edição</button>
                             <button type="submit" id="form-submit-btn" class="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700">Salvar Questão</button>
                         </div>
                     </form>
@@ -215,7 +215,7 @@
     </main>
 
     <script>
-        // Estado Global (com persistência LocalStorage)
+        // Estado Global (com persistência LocalStorage robusta)
         let systemConfig = JSON.parse(localStorage.getItem('sys_config')) || {
             examTitle: "Avaliação Geral de Conhecimentos",
             accessCode: "PROVA123",
@@ -259,3 +259,308 @@
                 studentSec.classList.add('hidden');
                 coordSec.classList.remove('hidden');
                 navCoordBtn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-800 text-white transition";
+                navStudentBtn.className = "px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-500 text-white transition";
+            }
+        }
+
+        // Atualização da Interface do Aluno e Coordenador
+        function updateUI() {
+            // Tela Aluno
+            document.getElementById('display-exam-title').textContent = systemConfig.examTitle;
+            const badge = document.getElementById('status-badge');
+            if (systemConfig.isReleased) {
+                badge.className = "inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold mb-6 bg-emerald-100 text-emerald-800";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span> PROVA LIBERADA POR COORDENAÇÃO`;
+            } else {
+                badge.className = "inline-flex items-center px-4 py-1.5 rounded-full text-xs font-semibold mb-6 bg-amber-100 text-amber-800";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 mr-2 animate-pulse"></span> Sistema Bloqueado / Aguardando Liberação`;
+            }
+
+            // Tela Coordenador
+            document.getElementById('coord-exam-title-input').value = systemConfig.examTitle;
+            document.getElementById('coord-exam-code-input').value = systemConfig.accessCode;
+            
+            const coordStatus = document.getElementById('coord-status-text');
+            const toggleBtn = document.getElementById('toggle-release-btn');
+            if (systemConfig.isReleased) {
+                coordStatus.textContent = "LIBERADO PARA ALUNOS";
+                coordStatus.className = "font-bold text-sm text-emerald-600";
+                toggleBtn.textContent = "Bloquear Sistema";
+                toggleBtn.className = "px-4 py-2 bg-rose-600 text-white rounded-lg text-sm font-medium hover:bg-rose-700";
+            } else {
+                coordStatus.textContent = "BLOQUEADO (EM ESPERA)";
+                coordStatus.className = "font-bold text-sm text-amber-600";
+                toggleBtn.textContent = "Liberar Prova Agora";
+                toggleBtn.className = "px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700";
+            }
+
+            renderQuestionsList();
+        }
+
+        // --- LÓGICA DO ALUNO ---
+        function startExam() {
+            const name = document.getElementById('student-name').value.trim();
+            const code = document.getElementById('student-code').value.trim().toUpperCase();
+
+            if (!systemConfig.isReleased) {
+                alert("A prova ainda não foi liberada pelo coordenador!");
+                return;
+            }
+            if (!name) {
+                alert("Por favor, digite seu nome.");
+                return;
+            }
+            if (code !== systemConfig.accessCode) {
+                alert("Código de acesso incorreto!");
+                return;
+            }
+            if (questions.length === 0) {
+                alert("Não há questões cadastradas para esta prova.");
+                return;
+            }
+
+            studentSession.name = name;
+            studentSession.currentQuestion = 0;
+            studentSession.userAnswers = new Array(questions.length).fill(null);
+
+            document.getElementById('student-waiting-room').classList.add('hidden');
+            document.getElementById('student-exam-room').classList.remove('hidden');
+            document.getElementById('exam-student-name').textContent = `Aluno: ${name}`;
+
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            const idx = studentSession.currentQuestion;
+            const q = questions[idx];
+
+            document.getElementById('question-number').textContent = `Questão ${idx + 1} de ${questions.length}`;
+            document.getElementById('question-title').textContent = q.title;
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = "";
+
+            q.options.forEach((opt, oIdx) => {
+                const isSelected = studentSession.userAnswers[idx] === oIdx;
+                const btn = document.createElement('button');
+                btn.type = "button";
+                btn.className = `w-full text-left p-4 rounded-xl border transition flex items-center space-x-3 ${
+                    isSelected ? "border-indigo-600 bg-indigo-50 text-indigo-900 font-medium" : "border-slate-200 hover:border-slate-300 bg-white"
+                }`;
+                btn.innerHTML = `
+                    <span class="w-6 h-6 flex items-center justify-center rounded-full border ${isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300 text-slate-500'} text-xs font-bold">${String.fromCharCode(65 + oIdx)}</span>
+                    <span>${opt}</span>
+                `;
+                btn.onclick = () => {
+                    studentSession.userAnswers[idx] = oIdx;
+                    loadQuestion();
+                };
+                container.appendChild(btn);
+            });
+
+            document.getElementById('prev-btn').disabled = idx === 0;
+            document.getElementById('next-btn').textContent = idx === questions.length - 1 ? "Finalizar Prova" : "Próxima";
+        }
+
+        function nextQuestion() {
+            if (studentSession.userAnswers[studentSession.currentQuestion] === null) {
+                alert("Selecione uma resposta antes de prosseguir.");
+                return;
+            }
+            if (studentSession.currentQuestion < questions.length - 1) {
+                studentSession.currentQuestion++;
+                loadQuestion();
+            } else {
+                finishExam();
+            }
+        }
+
+        function prevQuestion() {
+            if (studentSession.currentQuestion > 0) {
+                studentSession.currentQuestion--;
+                loadQuestion();
+            }
+        }
+
+        function finishExam() {
+            document.getElementById('student-exam-room').classList.add('hidden');
+            document.getElementById('student-result-room').classList.remove('hidden');
+
+            let score = 0;
+            const reviewContainer = document.getElementById('review-container');
+            reviewContainer.innerHTML = "";
+
+            questions.forEach((q, idx) => {
+                const userChoice = studentSession.userAnswers[idx];
+                const isCorrect = userChoice === q.answer;
+                if (isCorrect) score++;
+
+                const div = document.createElement('div');
+                div.className = `p-4 rounded-xl border ${isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'}`;
+                div.innerHTML = `
+                    <p class="font-semibold text-sm mb-1">${idx + 1}. ${q.title}</p>
+                    <p class="text-xs mb-1">Sua resposta: <span class="font-medium">${userChoice !== null ? q.options[userChoice] : 'Não respondida'}</span></p>
+                    ${!isCorrect ? `<p class="text-xs font-semibold text-emerald-700">Resposta Correta: ${q.options[q.answer]}</p>` : ''}
+                `;
+                reviewContainer.appendChild(div);
+            });
+
+            const pct = Math.round((score / questions.length) * 100);
+            document.getElementById('score-text').textContent = `${studentSession.name}, você acertou ${score} de ${questions.length} questões (${pct}%)`;
+        }
+
+        function resetStudentExam() {
+            document.getElementById('student-result-room').classList.add('hidden');
+            document.getElementById('student-waiting-room').classList.remove('hidden');
+            document.getElementById('student-code').value = "";
+            document.getElementById('student-name').value = "";
+        }
+
+        // --- LÓGICA DO COORDENADOR ---
+        function loginCoord() {
+            const pass = document.getElementById('coord-password-input').value;
+            if (pass === "admin123") {
+                document.getElementById('coord-login-room').classList.add('hidden');
+                document.getElementById('coord-panel').classList.remove('hidden');
+                document.getElementById('coord-password-input').value = "";
+            } else {
+                alert("Senha incorreta!");
+            }
+        }
+
+        function logoutCoord() {
+            document.getElementById('coord-panel').classList.add('hidden');
+            document.getElementById('coord-login-room').classList.remove('hidden');
+        }
+
+        function toggleExamRelease() {
+            systemConfig.isReleased = !systemConfig.isReleased;
+            saveData();
+        }
+
+        function saveExamSettings() {
+            const title = document.getElementById('coord-exam-title-input').value.trim();
+            const code = document.getElementById('coord-exam-code-input').value.trim().toUpperCase();
+
+            if (!title || !code) {
+                alert("Preencha o título e o código da prova.");
+                return;
+            }
+
+            systemConfig.examTitle = title;
+            systemConfig.accessCode = code;
+            saveData();
+            alert("Configurações salvas com sucesso!");
+        }
+
+        function generateRandomCode() {
+            const code = "PROVA" + Math.floor(1000 + Math.random() * 9000);
+            document.getElementById('coord-exam-code-input').value = code;
+        }
+
+        function saveQuestion(e) {
+            e.preventDefault();
+            const editIdx = parseInt(document.getElementById('edit-question-index').value);
+            const title = document.getElementById('form-title').value.trim();
+            const options = [
+                document.getElementById('opt-0').value.trim(),
+                document.getElementById('opt-1').value.trim(),
+                document.getElementById('opt-2').value.trim(),
+                document.getElementById('opt-3').value.trim()
+            ];
+
+            const radios = document.getElementsByName('correct-opt');
+            let answer = -1;
+            radios.forEach(r => { if (r.checked) answer = parseInt(r.value); });
+
+            if (answer === -1) {
+                alert("Selecione qual das alternativas é a correta!");
+                return;
+            }
+
+            const qData = { title, options, answer };
+
+            if (editIdx >= 0) {
+                questions[editIdx] = qData;
+            } else {
+                questions.push(qData);
+            }
+
+            saveData();
+            resetForm();
+        }
+
+        function editQuestion(idx) {
+            const q = questions[idx];
+            document.getElementById('edit-question-index').value = idx;
+            document.getElementById('form-title').value = q.title;
+            document.getElementById('opt-0').value = q.options[0];
+            document.getElementById('opt-1').value = q.options[1];
+            document.getElementById('opt-2').value = q.options[2];
+            document.getElementById('opt-3').value = q.options[3];
+
+            const radios = document.getElementsByName('correct-opt');
+            if (radios[q.answer]) {
+                radios[q.answer].checked = true;
+            }
+
+            document.getElementById('form-section-title').textContent = `✏️ Editando Questão ${idx + 1}`;
+            document.getElementById('form-submit-btn').textContent = "Atualizar Questão";
+            window.scrollTo({ top: document.getElementById('question-form').offsetTop - 50, behavior: 'smooth' });
+        }
+
+        function deleteQuestion(idx) {
+            if (confirm("Deseja realmente remover esta questão?")) {
+                questions.splice(idx, 1);
+                saveData();
+            }
+        }
+
+        function resetForm() {
+            document.getElementById('question-form').reset();
+            document.getElementById('edit-question-index').value = "-1";
+            document.getElementById('form-section-title').textContent = "➕ Cadastrar Nova Questão";
+            document.getElementById('form-submit-btn').textContent = "Salvar Questão";
+        }
+
+        function renderQuestionsList() {
+            const container = document.getElementById('questions-list');
+            document.getElementById('questions-count').textContent = questions.length;
+            container.innerHTML = "";
+
+            if (questions.length === 0) {
+                container.innerHTML = `<p class="text-sm text-slate-400 italic text-center py-4">Nenhuma questão cadastrada ainda.</p>`;
+                return;
+            }
+
+            questions.forEach((q, idx) => {
+                const item = document.createElement('div');
+                item.className = "p-4 border rounded-xl bg-slate-50 flex justify-between items-start gap-4";
+                
+                let optionsHtml = '';
+                q.options.forEach((opt, oIdx) => {
+                    const isCorrect = oIdx === q.answer;
+                    optionsHtml += `<span class="${isCorrect ? 'font-bold text-emerald-600' : ''}">${String.fromCharCode(65 + oIdx)}) ${opt} ${isCorrect ? '✓' : ''}</span>`;
+                });
+
+                item.innerHTML = `
+                    <div class="space-y-1">
+                        <p class="font-semibold text-sm text-slate-800">${idx + 1}. ${q.title}</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-slate-600">
+                            ${optionsHtml}
+                        </div>
+                    </div>
+                    <div class="flex space-x-1 shrink-0">
+                        <button onclick="editQuestion(${idx})" class="px-2.5 py-1 text-xs bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 rounded-lg">Editar</button>
+                        <button onclick="deleteQuestion(${idx})" class="px-2.5 py-1 text-xs bg-rose-50 text-rose-600 font-medium hover:bg-rose-100 rounded-lg">Excluir</button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // Inicializar aplicação
+        updateUI();
+    </script>
+</body>
+</html>
